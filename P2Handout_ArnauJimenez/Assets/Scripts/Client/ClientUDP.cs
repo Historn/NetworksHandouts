@@ -45,9 +45,8 @@ public class ClientUDP : MonoBehaviour
         //This time, our UDP socket doesn't have it, so we have to pass it
         //as a parameter on it's SendTo() method
 
-        byte[] data = new byte[1024];
-        string handshake = "Hello World";
-  
+        byte[] data = Encoding.ASCII.GetBytes("Hello World");
+        
         //TO DO 5
         //We'll wait for a server response,
         //so you can already start the receive thread

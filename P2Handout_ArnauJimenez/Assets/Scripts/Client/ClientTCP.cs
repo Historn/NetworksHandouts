@@ -4,6 +4,7 @@ using System.Text;
 using UnityEngine;
 using System.Threading;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 public class ClientTCP : MonoBehaviour
 {
@@ -29,6 +30,7 @@ public class ClientTCP : MonoBehaviour
     {
         Thread connect = new Thread(Connect);
         connect.Start();
+        SceneManager.LoadScene("Exercise1_WaitingRoom");
     }
     void Connect()
     {
@@ -40,7 +42,8 @@ public class ClientTCP : MonoBehaviour
         //connection between this endpoint and the server's endpoint
         try
         {
-            IPEndPoint ipep = new IPEndPoint(IPAddress.Parse("192.168.206.29"), 9050);
+            // Class IP: 192.168.206.29
+            IPEndPoint ipep = new IPEndPoint(IPAddress.Parse("192.168.1.21"), 9050);
             server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             server.Connect(ipep);
             clientText += "\nConnected to the server";
