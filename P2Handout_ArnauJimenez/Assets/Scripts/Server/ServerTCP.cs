@@ -62,10 +62,13 @@ public class ServerTCP : MonoBehaviour
 
     void CheckNewConnections()
     {
-        while(true)
+        int count = 0;
+        while (true)
         {
             User newUser = new User();
-            newUser.name = "Arnau";
+
+            count++;
+            newUser.name = "User" + count;
             //TO DO 3
             //TCP makes it so easy to manage conections, so we are going
             //to put it to use
@@ -98,11 +101,12 @@ public class ServerTCP : MonoBehaviour
         //TO DO 5
         //Create an infinite loop to start receiving messages for this user
         //You'll have to use the socket function receive to be able to get them.
-        byte[] data = new byte[1024];
-        int recv = 0;
+        
 
         while (true)
         {
+            byte[] data = new byte[1024];
+            int recv = 0;
             try
             {
                 recv = user.socket.Receive(data);
@@ -127,7 +131,7 @@ public class ServerTCP : MonoBehaviour
     //Just call the socket's send function and encode the string.
     void Send(User user)
     {
-        byte[] data = Encoding.ASCII.GetBytes("Welcome to the Server!");
+        byte[] data = Encoding.ASCII.GetBytes("Welcome to the Server " + user.name);
         try
         {
             user.socket.Send(data);
