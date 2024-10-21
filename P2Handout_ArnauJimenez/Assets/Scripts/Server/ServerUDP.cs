@@ -4,7 +4,8 @@ using System.Text;
 using UnityEngine;
 using System.Threading;
 using TMPro;
-using static ServerTCP;
+using System.Collections.Generic;
+using Unity.VisualScripting;
 
 public class ServerUDP : MonoBehaviour
 {
@@ -13,6 +14,15 @@ public class ServerUDP : MonoBehaviour
     public GameObject UItextObj;
     TextMeshProUGUI UItext;
     string serverText;
+
+    public struct User
+    {
+        public string name;
+        public EndPoint endPoint;
+        public bool firstConnection;
+    }
+
+    List<User> users = new List<User>();
 
     void Start()
     {
@@ -50,10 +60,10 @@ public class ServerUDP : MonoBehaviour
  
     void Receive()
     {
-        int recv;
         byte[] data = new byte[1024];
-        
-        serverText = serverText + "\n" + "Waiting for new Client...";
+        int recv = 0;
+
+        serverText += "\n" + "Waiting for new Client...";
 
         //TO DO 3
         //We don't know who may be comunicating with this server, so we have to create an
@@ -65,27 +75,71 @@ public class ServerUDP : MonoBehaviour
         //(the one we binded to a port before)
         //When using socket.ReceiveFrom, be sure send our remote as a reference so we can keep
         //this adress (the client) and reply to it on TO DO 4
-        
         while (true)
         {
-            recv = socket.Receive(data);
-            serverText = serverText + "\n" + "Message received from {0}:" + Remote.ToString();
-            serverText = serverText + "\n" + Encoding.ASCII.GetString(data, 0, recv);
+            User newUser = new User();
+            newUser.firstConnection = true;
 
-            //TO DO 4
-            //When our UDP server receives a message from a random remote, it has to send a ping,
-            //Call a send thread
-            Thread answer = new Thread(() => Send(Remote));
-            answer.Start();
+            data = new byte[1024];
+            recv = socket.ReceiveFrom(data, ref Remote);
+            string receivedMessage = Encoding.ASCII.GetString(data, 0, recv);
+
+            foreach (User user in users)
+            {
+                if (user.endPoint.ToString() == Remote.ToString())
+                {
+                    newUser = user;
+                    newUser.firstConnection = false;
+                    break;
+                }
+            }
+
+            if (newUser.firstConnection)
+            {
+                newUser.name = receivedMessage;
+                newUser.endPoint = Remote;
+                serverText += $"\n{newUser.name} joined the server called UDP Server";
+                //TO DO 4
+                //When our UDP server receives a message from a random remote, it has to send a ping,
+                //Call a send thread
+                Thread serverAnswer = new Thread(() => Send(Remote, "Welcome to the UDP Server: " + newUser.name));
+                serverAnswer.Start();
+
+                foreach (User user in users)
+                {
+                    Thread answer = new Thread(() => Send(user.endPoint, "New User connected: " + newUser.name));
+                    answer.Start();
+                }
+                newUser.firstConnection = false;
+                users.Add(newUser);
+            }
+            else
+            {
+                serverText += $"\n{newUser.name}: {receivedMessage}";
+                foreach (User user in users) 
+                {
+                    if (user.endPoint.ToString() == Remote.ToString())
+                    {
+                        Thread answer = new Thread(() => Send(user.endPoint, "You" + ": " + receivedMessage));
+                        answer.Start();
+                    }
+                    else
+                    {
+                        Thread answer = new Thread(() => Send(user.endPoint, newUser.name + ": " + receivedMessage));
+                        answer.Start();
+                    }
+                    
+                }
+            }
         }
 
     }
 
-    void Send(EndPoint Remote)
+    void Send(EndPoint Remote, string message)
     {
         //TO DO 4
         //Use socket.SendTo to send a ping using the remote we stored earlier.
-        byte[] data = Encoding.ASCII.GetBytes("Ping");
+        byte[] data = Encoding.ASCII.GetBytes(message);
 
         try
         {
@@ -95,7 +149,5 @@ public class ServerUDP : MonoBehaviour
         {
             Debug.Log($"Send error: {ex.Message}");
         }
-
-        
     }
 }

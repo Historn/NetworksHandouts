@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Threading;
 using TMPro;
 using System.Text;
+using System.Collections.Generic;
 
 public class ServerTCP : MonoBehaviour
 {
@@ -18,7 +19,10 @@ public class ServerTCP : MonoBehaviour
     {
         public string name;
         public Socket socket;
+        public bool firstConnection;
     }
+
+    List<User> users = new List<User>();
 
     void Start()
     {
@@ -62,13 +66,10 @@ public class ServerTCP : MonoBehaviour
 
     void CheckNewConnections()
     {
-        int count = 0;
         while (true)
         {
             User newUser = new User();
-
-            count++;
-            newUser.name = "User" + count;
+            newUser.firstConnection = true;
             //TO DO 3
             //TCP makes it so easy to manage conections, so we are going
             //to put it to use
@@ -98,30 +99,77 @@ public class ServerTCP : MonoBehaviour
 
     void Receive(User user)
     {
+        byte[] data = new byte[1024];
+        int recv = 0;
         //TO DO 5
         //Create an infinite loop to start receiving messages for this user
         //You'll have to use the socket function receive to be able to get them.
-        
 
         while (true)
         {
-            byte[] data = new byte[1024];
-            int recv = 0;
+            data = new byte[1024];
             try
             {
                 recv = user.socket.Receive(data);
-                if (recv == 0) break;
+                if (recv == 0)
+                {
+                    RemoveUser(user);
+                    break;
+                }
+
+                foreach (User userItem in users)
+                {
+                    if (userItem.socket.RemoteEndPoint.ToString() == user.socket.RemoteEndPoint.ToString())
+                    {
+                        user = userItem;
+                        user.firstConnection = false;
+                        break;
+                    }
+                }
 
                 string receivedMessage = Encoding.ASCII.GetString(data, 0, recv);
-                serverText += $"\nReceived: {receivedMessage}";
 
-                // Send a response
-                Thread answer = new Thread(() => Send(user));
-                answer.Start();
+                if (user.firstConnection)
+                {
+                    user.name = receivedMessage;
+                    
+                    serverText += $"\n{user.name} joined the server called TCP Server!";
+
+                    // Send a response
+                    Thread serverAnswer = new Thread(() => Send(user, ""));
+                    serverAnswer.Start();
+
+                    foreach (User userItem in users)
+                    {
+                        Thread answer = new Thread(() => Send(user, "New User connected: " + user.name));
+                        answer.Start();
+                    }
+                    user.firstConnection = false;
+                    users.Add(user);
+                }
+                {
+                    serverText += $"\n{user.name}: {receivedMessage}";
+                    foreach (User userItem in users)
+                    {
+                        if (userItem.socket.RemoteEndPoint.ToString() == user.socket.RemoteEndPoint.ToString())
+                        {
+                            Thread answer = new Thread(() => Send(userItem, "You" + ": " + receivedMessage));
+                            answer.Start();
+                        }
+                        else
+                        {
+                            Thread answer = new Thread(() => Send(userItem, user.name + ": " + receivedMessage));
+                            answer.Start();
+                        }
+
+                    }
+                }
             }
             catch (SocketException ex)
             {
                 Debug.Log($"Receive error: {ex.Message}");
+                RemoveUser(user);
+                break;
             }
         }
     }
@@ -129,9 +177,12 @@ public class ServerTCP : MonoBehaviour
     //TO DO 6
     //Now, we'll use this user socket to send a "ping".
     //Just call the socket's send function and encode the string.
-    void Send(User user)
+    void Send(User user, string message)
     {
-        byte[] data = Encoding.ASCII.GetBytes("Welcome to the Server " + user.name);
+        byte[] data = new byte[1024];
+
+        data = Encoding.ASCII.GetBytes(message);
+
         try
         {
             user.socket.Send(data);
@@ -140,5 +191,21 @@ public class ServerTCP : MonoBehaviour
         {
             Debug.Log($"Send error: {ex.Message}");
         }
+    }
+
+    void RemoveUser(User user)
+    {
+        // Remove the user from the list and close their
+        users.Remove(user);
+        try
+        {
+            user.socket.Shutdown(SocketShutdown.Both);
+            user.socket.Close();
+        }
+        catch (SocketException ex)
+        {
+            Debug.Log($"Error while closing socket: {ex.Message}");
+        }
+        serverText += $"\n{user.name} has left the server.";
     }
 }

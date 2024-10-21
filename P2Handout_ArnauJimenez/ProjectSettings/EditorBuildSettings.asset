@@ -5,7 +5,7 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Exercise1_Server.unity
     guid: 265fdcf7031dcc44d82c57941e41270c
   - enabled: 1
